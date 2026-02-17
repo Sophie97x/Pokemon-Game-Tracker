@@ -127,6 +127,30 @@ app.put('/api/content/:contentId', async (req, res) => {
   }
 });
 
+// Clear all progress for a user
+app.delete('/api/progress/user/:userId/all', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Delete all game content tracker entries for this user
+    await pool.query(
+      'DELETE FROM game_content_tracker WHERE user_id = $1',
+      [userId]
+    );
+    
+    // Delete all user progress entries for this user
+    await pool.query(
+      'DELETE FROM user_progress WHERE user_id = $1',
+      [userId]
+    );
+    
+    res.json({ message: 'All progress deleted successfully' });
+  } catch (err) {
+    console.error('Error clearing progress:', err);
+    res.status(500).json({ error: 'Failed to clear progress' });
+  }
+});
+
 // Get game content items
 app.get('/api/games/:gameId/content', async (req, res) => {
   try {

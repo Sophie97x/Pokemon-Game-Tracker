@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import SaveFileImporter from './SaveFileImporter';
+import PokedexTracker from './PokedexTracker';
 
 const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }) => {
   const [contentItems, setContentItems] = useState([]);
@@ -105,6 +106,8 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
           ></div>
         </div>
         <p>{completedCount} of {contentItems.length} items completed</p>
+        
+        <PokedexTracker gameId={game.id} userId={userId} apiUrl={apiUrl} />
       </div>
 
       <div style={{ marginBottom: '20px' }}>
