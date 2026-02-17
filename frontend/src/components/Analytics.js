@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const Analytics = ({ userId, apiUrl }) => {
+const Analytics = ({ userId, apiUrl, refreshTrigger }) => {
   const [analytics, setAnalytics] = useState({
     totalGames: 0,
     gamesStarted: 0,
@@ -16,7 +16,7 @@ const Analytics = ({ userId, apiUrl }) => {
 
   useEffect(() => {
     loadAnalytics();
-  }, [userId, apiUrl]);
+  }, [userId, apiUrl, refreshTrigger]);
 
   const loadAnalytics = async () => {
     try {

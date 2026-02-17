@@ -34,12 +34,12 @@ const PokedexStats = ({ userId, apiUrl, refreshTrigger }) => {
     fetchPokedexStats();
   };
 
-  // refetch whenever external trigger increments while modal is open
+  // refetch whenever external trigger increments or when modal opens
   React.useEffect(() => {
     if (isOpen) {
       fetchPokedexStats();
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, isOpen]);
 
   return (
     <div>

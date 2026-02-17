@@ -227,8 +227,8 @@ function App() {
               onImportSuccess={handleImportSuccess}
             />
             <PokedexStats userId={userId} apiUrl={API_URL} refreshTrigger={refreshCounter} />
-            <Analytics userId={userId} apiUrl={API_URL} />
-            <Stats userId={userId} apiUrl={API_URL} />
+            <Analytics userId={userId} apiUrl={API_URL} refreshTrigger={refreshCounter} />
+            <Stats userId={userId} apiUrl={API_URL} refreshTrigger={refreshCounter} />
           </>
         )}
 

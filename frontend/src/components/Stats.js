@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const Stats = ({ userId, apiUrl }) => {
+const Stats = ({ userId, apiUrl, refreshTrigger }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchStats();
-  }, [userId]);
+  }, [userId, refreshTrigger]);
 
   const fetchStats = async () => {
     try {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import SaveFileImporter from './SaveFileImporter';
+import SaveFileStats from './SaveFileStats';
 import PokedexTracker from './PokedexTracker';
 
 const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl, onImportSuccess, refreshCounter }) => {
@@ -131,6 +132,17 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl, 
                 loadContentProgress();
                 // notify parent to refresh global progress/stats
                 onImportSuccess && onImportSuccess(result);
+              }}
+            />
+            <SaveFileStats
+              gameId={game.id}
+              gameName={game.name}
+              userId={userId}
+              apiUrl={apiUrl}
+              onImportSuccess={() => {
+                setShowSaveImport(false);
+                loadContentProgress();
+                onImportSuccess && onImportSuccess();
               }}
             />
           </div>

@@ -35,25 +35,31 @@ const PokedexTracker = ({ gameId, userId, apiUrl, refreshTrigger }) => {
       const gameRes = await axios.get(`${apiUrl}/api/games/${gameId}`);
       const game = gameRes.data;
 
-      // Fetch progress for this game
-      const progressRes = await axios.get(`${apiUrl}/api/progress/${userId}/game/${gameId}`);
-      const progress = progressRes.data;
+      // Fetch actual caught pokemon for this game from user_pokemon table
+      try {
+        const pokemonRes = await axios.get(`${apiUrl}/api/pokemon/${userId}/game/${gameId}`);
+        const caughtPokemon = pokemonRes.data || [];
+        const pokemonCaught = caughtPokemon.length;
 
-      // Calculate Pokédex completion
-      const pokemonCaught =
-        progress
-          .filter((item) => item.content_type === 'pokemon_catch')
-          .reduce((acc, _) => acc + 1, 0) || 0;
+        const totalPokemon = GENERATION_POKEMON_COUNTS[game.generation] || 151;
+        const completionPercentage = (pokemonCaught / totalPokemon) * 100;
 
-      const totalPokemon = GENERATION_POKEMON_COUNTS[game.generation] || 151;
-      const completionPercentage = (pokemonCaught / totalPokemon) * 100;
-
-      setPokedexData({
-        caught: pokemonCaught,
-        total: totalPokemon,
-        completionPercentage: parseFloat(completionPercentage.toFixed(1)),
-        generationName: `Gen ${game.generation}`,
-      });
+        setPokedexData({
+          caught: pokemonCaught,
+          total: totalPokemon,
+          completionPercentage: parseFloat(completionPercentage.toFixed(1)),
+          generationName: `Gen ${game.generation}`,
+        });
+      } catch (pokemonErr) {
+        // If endpoint fails, set default values
+        const totalPokemon = GENERATION_POKEMON_COUNTS[game.generation] || 151;
+        setPokedexData({
+          caught: 0,
+          total: totalPokemon,
+          completionPercentage: 0,
+          generationName: `Gen ${game.generation}`,
+        });
+      }
       setLoading(false);
     } catch (err) {
       console.error('Error loading Pokédex data:', err);
