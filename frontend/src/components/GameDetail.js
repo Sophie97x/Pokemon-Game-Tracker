@@ -3,7 +3,7 @@ import axios from 'axios';
 import SaveFileImporter from './SaveFileImporter';
 import PokedexTracker from './PokedexTracker';
 
-const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }) => {
+const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl, onImportSuccess, refreshCounter }) => {
   const [contentItems, setContentItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [contentProgress, setContentProgress] = useState({});
@@ -12,7 +12,7 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
   useEffect(() => {
     fetchContentItems();
     loadContentProgress();
-  }, [game.id]);
+  }, [game.id, refreshCounter]);
 
   const fetchContentItems = async () => {
     try {
@@ -107,7 +107,7 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
         </div>
         <p>{completedCount} of {contentItems.length} items completed</p>
         
-        <PokedexTracker gameId={game.id} userId={userId} apiUrl={apiUrl} />
+        <PokedexTracker gameId={game.id} userId={userId} apiUrl={apiUrl} refreshTrigger={refreshCounter} />
       </div>
 
       <div style={{ marginBottom: '20px' }}>
@@ -129,6 +129,8 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
                 console.log('Save file imported:', result);
                 // Refresh content progress after import
                 loadContentProgress();
+                // notify parent to refresh global progress/stats
+                onImportSuccess && onImportSuccess(result);
               }}
             />
           </div>

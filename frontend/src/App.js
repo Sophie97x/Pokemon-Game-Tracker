@@ -16,6 +16,7 @@ function App() {
   const [userId] = useState('user_' + Date.now()); // Simple user ID generation
   const [userProgress, setUserProgress] = useState({});
   const [isDragging, setIsDragging] = useState(false);
+  const [refreshCounter, setRefreshCounter] = useState(0);
   const [darkMode, setDarkMode] = useState(() => {
     // Load dark mode preference from localStorage
     const saved = localStorage.getItem('pokemonTrackerDarkMode');
@@ -112,6 +113,8 @@ function App() {
   const handleImportSuccess = () => {
     // Refresh progress and stats after successful import
     loadUserProgress();
+    // bump counter to tell child components to reload their own data
+    setRefreshCounter((c) => c + 1);
   };
 
   const handleClearAllProgress = async () => {
@@ -223,7 +226,7 @@ function App() {
               apiUrl={API_URL}
               onImportSuccess={handleImportSuccess}
             />
-            <PokedexStats userId={userId} apiUrl={API_URL} />
+            <PokedexStats userId={userId} apiUrl={API_URL} refreshTrigger={refreshCounter} />
             <Analytics userId={userId} apiUrl={API_URL} />
             <Stats userId={userId} apiUrl={API_URL} />
           </>
@@ -237,6 +240,8 @@ function App() {
             onBack={() => setSelectedGame(null)}
             onProgressUpdate={handleProgressUpdate}
             apiUrl={API_URL}
+            onImportSuccess={handleImportSuccess}
+            refreshCounter={refreshCounter}
           />
         ) : (
           <GameList

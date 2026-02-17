@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const PokedexTracker = ({ gameId, userId, apiUrl }) => {
+const PokedexTracker = ({ gameId, userId, apiUrl, refreshTrigger }) => {
   const [pokedexData, setPokedexData] = useState({
     caught: 0,
     total: 0,
@@ -25,7 +25,7 @@ const PokedexTracker = ({ gameId, userId, apiUrl }) => {
     if (gameId) {
       loadPokedexData();
     }
-  }, [gameId, userId, apiUrl]);
+  }, [gameId, userId, apiUrl, refreshTrigger]);
 
   const loadPokedexData = async () => {
     try {
@@ -43,7 +43,7 @@ const PokedexTracker = ({ gameId, userId, apiUrl }) => {
       const pokemonCaught =
         progress
           .filter((item) => item.content_type === 'pokemon_catch')
-          .reduce((count) => count + 1, 0) || 0;
+          .reduce((acc, _) => acc + 1, 0) || 0;
 
       const totalPokemon = GENERATION_POKEMON_COUNTS[game.generation] || 151;
       const completionPercentage = (pokemonCaught / totalPokemon) * 100;

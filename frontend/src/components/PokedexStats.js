@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const PokedexStats = ({ userId, apiUrl }) => {
+const PokedexStats = ({ userId, apiUrl, refreshTrigger }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [totals, setTotals] = useState(null);
@@ -30,10 +30,16 @@ const PokedexStats = ({ userId, apiUrl }) => {
 
   const handleOpenStats = () => {
     setIsOpen(true);
-    if (!stats) {
+    // always refresh when opening so the user sees up-to-date info
+    fetchPokedexStats();
+  };
+
+  // refetch whenever external trigger increments while modal is open
+  React.useEffect(() => {
+    if (isOpen) {
       fetchPokedexStats();
     }
-  };
+  }, [refreshTrigger]);
 
   return (
     <div>
