@@ -16,9 +16,8 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
   const fetchContentItems = async () => {
     try {
       setLoading(true);
-      // For now, fetch from local data. In a real app, you'd fetch from API
-      // const response = await axios.get(`${apiUrl}/api/games/${game.id}/content`);
-      // setContentItems(response.data);
+      const response = await axios.get(`${apiUrl}/api/games/${game.id}/content`);
+      setContentItems(response.data);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching content:', err);
@@ -102,10 +101,10 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
         <div className="progress-bar" style={{ height: '30px' }}>
           <div
             className="progress-fill"
-            style={{ width: `${completedCount > 0 ? (completedCount / 12) * 100 : 0}%` }}
+            style={{ width: `${completedCount > 0 && contentItems.length > 0 ? (completedCount / contentItems.length) * 100 : 0}%` }}
           ></div>
         </div>
-        <p>{completedCount} items completed</p>
+        <p>{completedCount} of {contentItems.length} items completed</p>
       </div>
 
       <div style={{ marginBottom: '20px' }}>
@@ -125,6 +124,8 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
               apiUrl={apiUrl}
               onImportSuccess={(result) => {
                 console.log('Save file imported:', result);
+                // Refresh content progress after import
+                loadContentProgress();
               }}
             />
           </div>
@@ -133,53 +134,39 @@ const GameDetail = ({ game, progress, userId, onBack, onProgressUpdate, apiUrl }
 
       <div>
         <h3>Gyms & Milestones</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {[
-            'Gym 1',
-            'Gym 2',
-            'Gym 3',
-            'Gym 4',
-            'Gym 5',
-            'Gym 6',
-            'Side Quest 1',
-            'Side Quest 2',
-            'Pokedex Progress',
-            'Main Story',
-            'Post-Game',
-            'All Items Caught',
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              style={{
-                padding: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                backgroundColor: contentProgress[idx]?.is_completed ? '#e8f5e9' : 'white',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-              }}
-              onClick={() => {
-                const updated = { ...contentProgress };
-                const isCompleted = contentProgress[idx]?.is_completed || false;
-                updated[idx] = { ...contentProgress[idx], is_completed: !isCompleted };
-                setContentProgress(updated);
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={contentProgress[idx]?.is_completed || false}
-                onChange={() => {}}
-                style={{ marginRight: '10px' }}
-              />
-              <span style={{
-                textDecoration: contentProgress[idx]?.is_completed ? 'line-through' : 'none',
-                color: contentProgress[idx]?.is_completed ? '#999' : '#333',
-              }}>
-                {item}
-              </span>
-            </div>
-          ))}
-        </div>
+        {contentItems.length === 0 ? (
+          <p>No content items for this game</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {contentItems.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '5px',
+                  backgroundColor: contentProgress[item.id]?.is_completed ? '#e8f5e9' : 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                }}
+                onClick={() => handleContentToggle(item)}
+              >
+                <input
+                  type="checkbox"
+                  checked={contentProgress[item.id]?.is_completed || false}
+                  onChange={() => {}}
+                  style={{ marginRight: '10px' }}
+                />
+                <span style={{
+                  textDecoration: contentProgress[item.id]?.is_completed ? 'line-through' : 'none',
+                  color: contentProgress[item.id]?.is_completed ? '#999' : '#333',
+                }}>
+                  {item.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <button className="btn btn-primary" style={{ marginTop: '20px' }}>

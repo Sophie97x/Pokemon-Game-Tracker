@@ -112,3 +112,14 @@ INSERT INTO game_content (game_id, content_type, name, description, order_num) V
 (1, 'story_chapter', 'Defeat Team Rocket', 'Complete main storyline', 2),
 (1, 'pokemon_catch', 'Catch all Gen 1 Pokémon', 'Complete the Pokedex', 1),
 (1, 'side_mission', 'Help NPCs', 'Assist various characters', 1);
+
+-- Pokémon Emerald content (game_id = 9)
+INSERT INTO game_content (game_id, content_type, name, description, order_num) VALUES
+(9, 'gym', 'Roxie''s Gym', 'Rock-type Gym Leader in Rustboro', 1),
+(9, 'gym', 'Brawley''s Gym', 'Fighting-type Gym Leader in Dewford', 2),
+(9, 'gym', 'Watson''s Gym', 'Electric-type Gym Leader in Mauville', 3),
+(9, 'gym', 'Flannery''s Gym', 'Fire-type Gym Leader in Lavaridge', 4),
+(9, 'gym', 'Norman''s Gym', 'Normal-type Gym Leader in Petalburg', 5),
+(9, 'gym', 'Winona''s Gym', 'Flying-type Gym Leader in Fortree', 6),
+(9, 'gym', 'Tate & Liza''s Gym', 'Psychic-type Gym Leader Twins in Mossdeep', 7),
+(9, 'gym', 'Wallace''s Gym', 'Water-type Gym Leader in Sootopolis', 8);

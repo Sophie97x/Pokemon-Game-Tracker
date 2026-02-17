@@ -4,6 +4,7 @@ import './index.css';
 import GameList from './components/GameList';
 import GameDetail from './components/GameDetail';
 import Stats from './components/Stats';
+import BulkSaveFileImporter from './components/BulkSaveFileImporter';
 
 function App() {
   const [games, setGames] = useState([]);
@@ -47,6 +48,11 @@ function App() {
     }
   };
 
+  const handleImportSuccess = () => {
+    // Refresh progress and stats after successful import
+    loadUserProgress();
+  };
+
   const handleGameSelect = (game) => {
     setSelectedGame(game);
   };
@@ -81,7 +87,17 @@ function App() {
           {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
         </div>
 
-        {!selectedGame && <Stats userId={userId} apiUrl={API_URL} />}
+        {!selectedGame && (
+          <>
+            <BulkSaveFileImporter
+              games={games}
+              userId={userId}
+              apiUrl={API_URL}
+              onImportSuccess={handleImportSuccess}
+            />
+            <Stats userId={userId} apiUrl={API_URL} />
+          </>
+        )}
 
         {selectedGame ? (
           <GameDetail
