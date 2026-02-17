@@ -53,11 +53,29 @@ CREATE TABLE IF NOT EXISTS game_content_tracker (
   UNIQUE(user_id, content_id)
 );
 
+-- Caught Pokémon tracker
+CREATE TABLE IF NOT EXISTS user_pokemon (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL,
+  game_id INT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  pokemon_id INT NOT NULL,
+  pokemon_name VARCHAR(255) NOT NULL,
+  origin_game_id INT REFERENCES games(id) ON DELETE SET NULL,
+  origin_game_name VARCHAR(255),
+  caught_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, game_id, pokemon_id)
+);
+
 -- Create indexes
 CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_game_id ON user_progress(game_id);
 CREATE INDEX idx_game_content_tracker_user_id ON game_content_tracker(user_id);
 CREATE INDEX idx_game_content_tracker_game_id ON game_content_tracker(game_id);
+CREATE INDEX idx_user_pokemon_user_id ON user_pokemon(user_id);
+CREATE INDEX idx_user_pokemon_game_id ON user_pokemon(game_id);
+CREATE INDEX idx_user_pokemon_origin_game ON user_pokemon(origin_game_id);
 
 -- Insert Pokemon games data
 INSERT INTO games (name, generation, release_year, platform, completion_time_hours, description, recommended_order, save_file_format) VALUES

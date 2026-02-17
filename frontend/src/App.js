@@ -6,6 +6,7 @@ import GameDetail from './components/GameDetail';
 import Stats from './components/Stats';
 import Analytics from './components/Analytics';
 import BulkSaveFileImporter from './components/BulkSaveFileImporter';
+import PokedexStats from './components/PokedexStats';
 
 function App() {
   const [games, setGames] = useState([]);
@@ -222,6 +223,7 @@ function App() {
               apiUrl={API_URL}
               onImportSuccess={handleImportSuccess}
             />
+            <PokedexStats userId={userId} apiUrl={API_URL} />
             <Analytics userId={userId} apiUrl={API_URL} />
             <Stats userId={userId} apiUrl={API_URL} />
           </>

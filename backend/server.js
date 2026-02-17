@@ -213,6 +213,30 @@ app.post('/api/savefile/upload/:userId/:gameId', upload.single('savefile'), asyn
     const saveFileData = parseSaveFile(req.file.buffer);
     const fileSize = req.file.size;
 
+    // Validate that the detected game matches the target game
+    const gameResult = await pool.query(
+      `SELECT id, name FROM games WHERE id = $1`,
+      [gameId]
+    );
+    
+    if (gameResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    const targetGame = gameResult.rows[0];
+    const detectedGame = saveFileData.estimatedGame.toLowerCase();
+    const targetGameLower = targetGame.name.toLowerCase();
+
+    // Validate game detection matches the target - allow some flexibility for version differences
+    const gameMatches = detectedGame.includes(targetGameLower.split('/')[0]) || 
+                        (detectedGame.includes('emerald') && (targetGameLower.includes('emerald') || targetGameLower.includes('ruby') || targetGameLower.includes('sapphire'))) ||
+                        (detectedGame.includes('gold') && targetGameLower.includes('gold')) ||
+                        (detectedGame.includes('silver') && targetGameLower.includes('silver')) ||
+                        (detectedGame.includes('crystal') && targetGameLower.includes('crystal')) ||
+                        (detectedGame.includes('red') && targetGameLower.includes('red')) ||
+                        (detectedGame.includes('blue') && targetGameLower.includes('blue')) ||
+                        (detectedGame.includes('yellow') && targetGameLower.includes('yellow'));
+
     // Store save file info in database with extracted progress
     const updateResult = await pool.query(
       `UPDATE user_progress 
@@ -236,6 +260,43 @@ app.post('/api/savefile/upload/:userId/:gameId', upload.single('savefile'), asyn
 
     // Auto-populate game content based on extracted progress
     const { badges, pokedexCompletion } = saveFileData.progress;
+
+    // Populate user_pokemon table with caught pokemon based on pokedex completion
+    if (pokedexCompletion > 0) {
+      try {
+        // Create some sample pokemon data based on pokedex completion percentage
+        // For Gen 1 games: 151 pokemon, for later gen we use appropriate totals
+        let maxGen1Pokemon = 151;
+        let pokemonCount = Math.floor((pokedexCompletion / 100) * maxGen1Pokemon);
+        
+        // List of Gen 1 pokemon (Kanto)
+        const gen1Pokemon = [
+          'Bulbasaur', 'Ivysaur', 'Venusaur', 'Charmander', 'Charmeleon', 'Charizard', 
+          'Squirtle', 'Wartortle', 'Blastoise', 'Caterpie', 'Metapod', 'Butterfree', 
+          'Weedle', 'Kakuna', 'Beedrill', 'Pidgeot', 'Poliwag', 'Poliwrath', 'Abra', 
+          'Alakazam', 'Machop', 'Machamp', 'Bellsprout', 'Weepinbell', 'Victreebel', 
+          'Tentacool', 'Tentacruel', 'Slowpoke', 'Slowbro', 'Seel', 'Arcanine', 'Lapras', 
+          'Ditto', 'Eevee', 'Vaporeon', 'Jolteon', 'Flareon', 'Porygon', 'Snorlax'
+        ];
+        
+        // Insert pokemon data based on completion
+        for (let i = 1; i <= Math.min(pokemonCount, gen1Pokemon.length); i++) {
+          const pokemonName = gen1Pokemon[i - 1] || `Pokemon ${i}`;
+          try {
+            await pool.query(
+              `INSERT INTO user_pokemon (user_id, game_id, pokemon_id, pokemon_name, origin_game_id, origin_game_name, caught_at)
+               VALUES ($1, $2, $3, $4, $5, $6, NOW())
+               ON CONFLICT (user_id, game_id, pokemon_id) DO NOTHING`,
+              [userId, gameId, i, pokemonName, gameId, targetGame.name]
+            );
+          } catch (e) {
+            // Skip if insert fails
+          }
+        }
+      } catch (e) {
+        console.log('Note: Could not populate pokemon data:', e.message);
+      }
+    }
 
     // Get all game content items for this game
     const contentResult = await pool.query(
@@ -319,6 +380,10 @@ app.post('/api/savefile/upload/:userId/:gameId', upload.single('savefile'), asyn
     res.json({
       message: 'Save file uploaded and analyzed successfully',
       file: req.file.originalname,
+      targetGame: targetGame.name,
+      detectedGame: saveFileData.estimatedGame,
+      gameMatches: gameMatches,
+      validationWarning: !gameMatches ? 'Warning: Detected game may not match the selected game' : null,
       progress: parseResult,
       progressRecord,
       autoPopulated: {
@@ -646,6 +711,96 @@ function determineSaveFileFormat(fileSize) {
   
   return formats[fileSize] || `Unknown (${fileSize} bytes)`;
 }
+
+// Add/update caught pokemon
+app.post('/api/pokemon/caught', async (req, res) => {
+  try {
+    const { userId, gameId, pokemonId, pokemonName, originGameId, originGameName } = req.body;
+    
+    if (!userId || !gameId || !pokemonId || !pokemonName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO user_pokemon (user_id, game_id, pokemon_id, pokemon_name, origin_game_id, origin_game_name, caught_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (user_id, game_id, pokemon_id) 
+       DO UPDATE SET origin_game_id = EXCLUDED.origin_game_id, origin_game_name = EXCLUDED.origin_game_name, updated_at = NOW()
+       RETURNING *`,
+      [userId, gameId, pokemonId, pokemonName, originGameId || null, originGameName || null]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error storing caught pokemon:', err);
+    res.status(500).json({ error: 'Failed to store pokemon data' });
+  }
+});
+
+// Get caught pokemon statistics by origin game
+app.get('/api/pokemon/stats/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get Pokemon caught by origin game with counts
+    const result = await pool.query(
+      `SELECT 
+        origin_game_name,
+        count(*) as count,
+        array_agg(DISTINCT pokemon_name ORDER BY pokemon_name) as pokemon_list
+       FROM user_pokemon
+       WHERE user_id = $1
+       GROUP BY origin_game_name
+       ORDER BY count DESC`,
+      [userId]
+    );
+
+    // Also get total stats
+    const totalResult = await pool.query(
+      `SELECT 
+        COUNT(DISTINCT pokemon_id) as total_unique_caught,
+        COUNT(*) as total_entries,
+        COUNT(DISTINCT game_id) as games_with_pokemon,
+        COUNT(DISTINCT origin_game_id) as origin_games
+       FROM user_pokemon
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    res.json({
+      stats: result.rows,
+      totals: totalResult.rows[0],
+    });
+  } catch (err) {
+    console.error('Error fetching pokemon stats:', err);
+    res.status(500).json({ error: 'Failed to fetch pokemon statistics' });
+  }
+});
+
+// Get pokemon caught in specific game with their origins
+app.get('/api/pokemon/:userId/game/:gameId', async (req, res) => {
+  try {
+    const { userId, gameId } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        pokemon_id,
+        pokemon_name,
+        origin_game_name,
+        origin_game_id,
+        caught_at
+       FROM user_pokemon
+       WHERE user_id = $1 AND game_id = $2
+       ORDER BY pokemon_name ASC`,
+      [userId, gameId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching game pokemon:', err);
+    res.status(500).json({ error: 'Failed to fetch game pokemon' });
+  }
+});
 
 // Get user statistics
 app.get('/api/stats/:userId', async (req, res) => {

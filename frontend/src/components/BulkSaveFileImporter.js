@@ -72,7 +72,8 @@ const BulkSaveFileImporter = ({ games, userId, apiUrl, onImportSuccess }) => {
       if (gbaGame) return gbaGame;
     }
     
-    return match || games[0];
+    // Don't default to games[0] - return null if no match found so user can select manually
+    return match;
   };
 
   const handleFileSelect = (e) => {
@@ -97,75 +98,90 @@ const BulkSaveFileImporter = ({ games, userId, apiUrl, onImportSuccess }) => {
 
     for (const file of selectedFiles) {
       try {
-        // First pass: analyze the file without uploading to get game ID
-        const formData = new FormData();
-        formData.append('savefile', file);
-
-        // Upload to analyze
-        const placeholderId = games[0]?.id || 1;
-        const analyzeResponse = await fetch(
-          `${apiUrl}/api/savefile/upload/${userId}/${placeholderId}`,
-          {
-            method: 'POST',
-            body: formData,
-          }
-        );
-
-        if (!analyzeResponse.ok) {
-          throw new Error('Upload failed');
+        // Analyze file based on size to detect format
+        const fileSize = file.size;
+        let detectedFormat = '';
+        let estimatedGame = '';
+        
+        if (fileSize === 8192 || (fileSize > 7800 && fileSize < 8500)) {
+          detectedFormat = 'Game Boy (8KB)';
+          estimatedGame = 'Pokemon Red/Blue/Yellow';
+        } else if (fileSize === 32768 || (fileSize > 31000 && fileSize < 34000)) {
+          detectedFormat = 'Game Boy Color (32KB)';
+          estimatedGame = 'Pokemon Gold/Silver/Crystal';
+        } else if (fileSize === 131072 || (fileSize > 130000 && fileSize < 135000)) {
+          detectedFormat = 'Game Boy Advance (128KB)';
+          estimatedGame = 'Pokemon Emerald/Ruby/Sapphire/FireRed/LeafGreen';
+        } else if (fileSize === 524288 || (fileSize > 520000 && fileSize < 530000)) {
+          detectedFormat = 'Nintendo DS (512KB)';
+          estimatedGame = 'Pokemon Diamond/Pearl/Platinum or Black/White';
+        } else if (fileSize > 380000 && fileSize < 430000) {
+          detectedFormat = 'Nintendo 3DS (~405KB)';
+          estimatedGame = 'Pokemon X/Y/Omega Ruby/Alpha Sapphire/Sun/Moon/Ultra Sun/Ultra Moon';
+        } else {
+          uploadResults.push({
+            filename: file.name,
+            success: false,
+            error: 'Unknown file format - could not determine game from file size',
+            details: `File size: ${fileSize} bytes`,
+          });
+          continue;
         }
 
-        const analyzeData = await analyzeResponse.json();
-        const { progress } = analyzeData;
-
         // Find the best matching game based on analysis
-        const matchedGame = matchGameByAnalysis(progress.estimatedGame, progress.format);
+        const matchedGame = matchGameByAnalysis(estimatedGame, detectedFormat);
 
         if (!matchedGame) {
           uploadResults.push({
             filename: file.name,
             success: false,
             error: 'Could not identify the game from save file',
-            details: `Detected: ${progress.estimatedGame}`,
+            details: `Detected: ${estimatedGame} (${detectedFormat})`,
           });
           continue;
         }
 
-        // If we got a different game match, re-upload to the correct game
-        if (matchedGame.id !== placeholderId) {
-          try {
-            const formData2 = new FormData();
-            formData2.append('savefile', file);
+        // Upload to the correct game
+        try {
+          const formData = new FormData();
+          formData.append('savefile', file);
 
-            const correctResponse = await fetch(
-              `${apiUrl}/api/savefile/upload/${userId}/${matchedGame.id}`,
-              {
-                method: 'POST',
-                body: formData2,
-              }
-            );
-
-            if (!correctResponse.ok) {
-              throw new Error('Re-upload to correct game failed');
+          const uploadResponse = await fetch(
+            `${apiUrl}/api/savefile/upload/${userId}/${matchedGame.id}`,
+            {
+              method: 'POST',
+              body: formData,
             }
-          } catch (e) {
-            console.log('Note:', e.message);
-          }
-        }
+          );
 
-        uploadResults.push({
-          filename: file.name,
-          gameName: matchedGame.name,
-          gameFormat: matchedGame.platform,
-          success: true,
-          message: `✅ Imported for ${matchedGame.name}`,
-          details: {
-            detectedGame: progress.estimatedGame,
-            format: progress.format,
-            badges: progress.progress.badges,
-            pokedexCompletion: progress.progress.pokedexCompletion,
-          },
-        });
+          if (!uploadResponse.ok) {
+            throw new Error('Upload to correct game failed');
+          }
+
+          const uploadData = await uploadResponse.json();
+
+          uploadResults.push({
+            filename: file.name,
+            gameName: matchedGame.name,
+            gameFormat: matchedGame.platform,
+            success: true,
+            message: `✅ Imported for ${matchedGame.name}`,
+            details: {
+              detectedGame: estimatedGame,
+              format: detectedFormat,
+              badges: uploadData.progress?.badges || 0,
+              pokedexCompletion: uploadData.progress?.pokedexCompletion || 0,
+            },
+          });
+        } catch (e) {
+          console.log('Note:', e.message);
+          uploadResults.push({
+            filename: file.name,
+            gameName: matchedGame.name,
+            success: false,
+            error: e.message,
+          });
+        }
       } catch (err) {
         console.error(`Error uploading ${file.name}:`, err);
         uploadResults.push({
