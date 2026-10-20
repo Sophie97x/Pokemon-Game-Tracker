@@ -440,17 +440,6 @@ function parseSaveFile(fileBuffer) {
     }
   };
 
-  console.log(`\n=== SAVE FILE PARSER DEBUG ===`);
-  console.log(`File size: ${fileSize} bytes`);
-  
-  // Show first 100 bytes in hex for debugging
-  let hexDump = '';
-  for (let i = 0; i < Math.min(100, fileSize); i++) {
-    hexDump += `${fileBuffer[i].toString(16).padStart(2, '0')} `;
-    if ((i + 1) % 16 === 0) hexDump += '\n';
-  }
-  console.log('First 100 bytes (hex):\n' + hexDump);
-
   // Determine format and extract progress based on file size (with tolerance)
   // Allow ±5% variance in file size for headers/metadata
   if (isCloseTo(fileSize, 8192, 0.05)) {
@@ -490,9 +479,6 @@ function parseSaveFile(fileBuffer) {
   }
 
   gameInfo.format = format;
-  console.log(`Detected format: ${format}`);
-  console.log(`Extracted data:`, gameInfo.progress);
-  console.log(`=== END DEBUG ===\n`);
   return gameInfo;
 }
 
@@ -504,7 +490,6 @@ function isCloseTo(value, target, tolerance) {
 
 function parseGameBoyGen1(buffer) {
   try {
-    console.log('--- Gen 1 Parser ---');
     let badges = 0;
     let pokedexOwned = 0;
     let playtime = 0;
@@ -515,7 +500,6 @@ function parseGameBoyGen1(buffer) {
       if (buffer.length > offset) {
         const badgeByte = buffer[offset];
         const bitCount = (badgeByte.toString(2).match(/1/g) || []).length;
-        console.log(`  Badge offset 0x${offset.toString(16)}: 0x${badgeByte.toString(16)} (${bitCount} bits set)`);
         if (bitCount > 0 && bitCount <= 8) {
           badges = bitCount;
           break;
@@ -532,7 +516,6 @@ function parseGameBoyGen1(buffer) {
           const byte = buffer[offset + i];
           count += (byte.toString(2).match(/1/g) || []).length;
         }
-        console.log(`  Pokedex offset 0x${offset.toString(16)}: ${count} Pokemon bits set`);
         if (count > pokedexOwned && count <= 151) {
           pokedexOwned = count;
         }
@@ -545,14 +528,12 @@ function parseGameBoyGen1(buffer) {
         const hours = buffer[0x2CED];
         const minutes = buffer[0x2CEE];
         const seconds = buffer[0x2CEF];
-        console.log(`  Playtime at 0x2CED: ${hours}h ${minutes}m ${seconds}s`);
         playtime = hours;
       } catch (e) {
         playtime = 0;
       }
     }
     
-    console.log(`  Final: ${badges} badges, ${pokedexOwned} Pokemon, ${playtime}h playtime`);
     
     let estimatedGame = 'Pokemon Red/Blue/Yellow';
     if (badges >= 8) estimatedGame = 'Pokemon Red/Blue/Yellow (Complete)';
