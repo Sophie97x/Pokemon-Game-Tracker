@@ -57,7 +57,13 @@ pokemon-tracking-site/
    cd pokemon-tracking-site
    ```
 
-2. **Start all services**:
+2. **Configure a unique database password**:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit the ignored `.env` file and set `DB_PASSWORD` to a unique strong password before starting Docker. For an existing PostgreSQL volume, update the database user's password separately; changing `.env` does not rotate it.
+
+3. **Start all services**:
    ```bash
    docker-compose up --build
    ```
@@ -67,12 +73,12 @@ pokemon-tracking-site/
    - Start the Node.js/Express backend API on port 5000
    - Start the React frontend on port 3000
 
-3. **Access the application**:
+4. **Access the application**:
    - Frontend: http://localhost:3000
    - API: http://localhost:5000
    - Health check: http://localhost:5000/api/health
 
-4. **Stop the services**:
+5. **Stop the services**:
    ```bash
    docker-compose down
    ```
