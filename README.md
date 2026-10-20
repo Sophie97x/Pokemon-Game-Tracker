@@ -32,7 +32,7 @@ pokemon-tracking-site/
 │   └── src/                   # API routes and utilities
 ├── frontend/                  # React application
 │   ├── src/
-│   │   ├── App.js            # Main React component
+│   │   ├── App.jsx           # Main React component
 │   │   ├── index.js          # Entry point
 │   │   ├── index.css         # Global styles
 │   │   └── components/       # React components
@@ -106,11 +106,14 @@ npm run dev
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm start
 ```
 
-The frontend will open at http://localhost:3000
+The frontend uses Vite and opens at http://localhost:3000. Set `REACT_APP_API_URL` in `frontend/.env` to override the API URL (default: `http://localhost:5000`).
+
+```
+```
 
 ### Database Setup
 

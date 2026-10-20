@@ -3,26 +3,59 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const multer = require('multer');
+const { rateLimit } = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const REQUEST_BODY_LIMIT = '100kb';
+const UPLOAD_LIMITS = {
+  fileSize: 10 * 1024 * 1024,
+  files: 1,
+  fields: 10,
+  fieldSize: 10 * 1024,
+  parts: 11,
+};
+
+const parsePositiveInteger = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const rateLimitWindowMs = parsePositiveInteger(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000);
+const rateLimitMax = parsePositiveInteger(process.env.RATE_LIMIT_MAX, 100);
 
 // Configure multer for file uploads
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
+  limits: UPLOAD_LIMITS,
 });
 
 // Middleware
+const trustedProxies = (process.env.TRUSTED_PROXIES || '').split(',').map(value => value.trim()).filter(Boolean);
+if (trustedProxies.length > 0) {
+  app.set('trust proxy', trustedProxies);
+}
+
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/api', rateLimit({
+  windowMs: rateLimitWindowMs,
+  limit: rateLimitMax,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+}));
+app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(bodyParser.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT, parameterLimit: 100 }));
 
 // Database connection
+const databasePassword = process.env.DB_PASSWORD;
+if (process.env.NODE_ENV === 'production' && !databasePassword) {
+  throw new Error('Set DB_PASSWORD before starting the production API');
+}
 const pool = new Pool({
   user: process.env.DB_USER || 'pokemon_user',
-  password: process.env.DB_PASSWORD || 'pokemon_password',
+  password: databasePassword,
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'pokemon_tracker',
@@ -967,11 +1000,21 @@ app.get('/api/seed-test-pokemon/:userId/:gameId', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(413).json({ error: 'Upload exceeds allowed limits' });
+  }
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request body exceeds allowed limit' });
+  }
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Pokemon Tracker API listening on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Pokemon Tracker API listening on port ${PORT}`);
+  });
+}
+
+module.exports = { app, pool };
